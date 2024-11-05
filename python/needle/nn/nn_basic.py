@@ -1,5 +1,6 @@
 """The module.
 """
+
 from typing import List, Callable, Any
 from needle.autograd import Tensor
 from needle import ops
@@ -110,6 +111,7 @@ class ReLU(Module):
         raise NotImplementedError()
         ### END YOUR SOLUTION
 
+
 class Sequential(Module):
     def __init__(self, *modules):
         super().__init__()
@@ -143,6 +145,7 @@ class BatchNorm1d(Module):
         raise NotImplementedError()
         ### END YOUR SOLUTION
 
+
 class BatchNorm2d(BatchNorm1d):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -152,7 +155,7 @@ class BatchNorm2d(BatchNorm1d):
         s = x.shape
         _x = x.transpose((1, 2)).transpose((2, 3)).reshape((s[0] * s[2] * s[3], s[1]))
         y = super().forward(_x).reshape((s[0], s[2], s[3], s[1]))
-        return y.transpose((2,3)).transpose((1,2))
+        return y.transpose((2, 3)).transpose((1, 2))
 
 
 class LayerNorm1d(Module):
