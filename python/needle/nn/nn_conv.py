@@ -39,10 +39,40 @@ class Conv(Module):
         self.stride = stride
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.weight = Parameter(
+            init.kaiming_uniform(
+                self.in_channels,
+                self.out_channels,
+                shape=(kernel_size, kernel_size, in_channels, out_channels),
+                device=device,
+                dtype=dtype,
+            )
+        )
+        bias_bound = 1.0 / np.sqrt(in_channels * kernel_size * kernel_size)
+        self.bias = (
+            Parameter(
+                init.rand(
+                    out_channels,
+                    low=-bias_bound,
+                    high=bias_bound,
+                    device=device,
+                    dtype=dtype,
+                )
+            )
+            if bias
+            else None
+        )
+        self.padding = kernel_size // 2
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        x = ops.permute(x, (0, 2, 3, 1))
+        x = ops.conv(x, self.weight, stride=self.stride, padding=self.padding)
+        if self.bias is not None:
+            bias = ops.broadcast_to(
+                self.bias.reshape((1, 1, 1, self.out_channels)), x.shape
+            )
+            x = x + bias
+        return ops.permute(x, (0, 3, 1, 2))
         ### END YOUR SOLUTION

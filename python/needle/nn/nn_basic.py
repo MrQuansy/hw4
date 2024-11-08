@@ -6,6 +6,7 @@ from needle.autograd import Tensor
 from needle import ops
 import needle.init as init
 import numpy as np
+import math
 
 
 class Parameter(Tensor):
@@ -111,7 +112,7 @@ class Linear(Module):
 class Flatten(Module):
     def forward(self, X):
         ### BEGIN YOUR SOLUTION
-        return X.reshape((X.shape[0], -1))
+        return X.reshape((X.shape[0], math.prod(X.shape[1:])))
         ### END YOUR SOLUTION
 
 
@@ -163,29 +164,35 @@ class BatchNorm1d(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        n = x.shape[0]
-        n_features = x.shape[1]
-        w = ops.broadcast_to(self.weight, x.shape)
-        b = ops.broadcast_to(self.bias, x.shape)
+        if self.weight.shape != (1, self.dim):
+            self.weight = self.weight.reshape((1, self.dim))
+        if self.bias.shape != (1, self.dim):
+            self.bias = self.bias.reshape((1, self.dim))
         if self.training:
-            mean = x.sum(axes=(0,)) / n
-            batch_mean = mean.broadcast_to(x.shape)
-            var = ((x - batch_mean) ** 2).sum(axes=(0,)) / n
-            batch_var = var.broadcast_to(x.shape)
-            ret = w * (x - batch_mean) / ((batch_var + self.eps) ** 0.5) + b
-
-            self.running_mean = (
-                self.momentum * mean + (1 - self.momentum) * self.running_mean
-            )
-            self.running_var = (
-                self.momentum * var + (1 - self.momentum) * self.running_var
-            )
-            return ret
+            batch_size, feature_size = x.shape
+            mean = (x.sum(axes=(0,)) / batch_size).reshape((1, feature_size))
+            var = (
+                ((x - mean.broadcast_to(x.shape)) ** 2).sum(axes=(0,)) / batch_size
+            ).reshape((1, feature_size))
+            self.running_mean = self.running_mean * (1 - self.momentum) + mean.reshape(
+                self.running_mean.shape
+            ) * (self.momentum)
+            self.running_var = self.running_var * (1 - self.momentum) + var.reshape(
+                self.running_var.shape
+            ) * (self.momentum)
+            mean = mean.broadcast_to(x.shape)
+            var = var.broadcast_to(x.shape)
+            std_x = (x - mean) / ops.power_scalar(var + self.eps, 0.5)
+            weight = self.weight.broadcast_to(x.shape)
+            bias = self.bias.broadcast_to(x.shape)
+            return std_x * weight + bias
         else:
-            mean = ops.broadcast_to(self.running_mean, x.shape)
-            var = ops.broadcast_to(self.running_var, x.shape)
-            ret = (x - mean) / ((var + self.eps) ** 0.5) * w + b
-            return ret
+            std_x = (x - self.running_mean.broadcast_to(x.shape)) / ops.power_scalar(
+                self.running_var.broadcast_to(x.shape) + self.eps, 0.5
+            )
+            return std_x * self.weight.broadcast_to(x.shape) + self.bias.broadcast_to(
+                x.shape
+            )
         ### END YOUR SOLUTION
 
 
